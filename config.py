@@ -12,7 +12,7 @@ CLAUDE_CONFIG = {
     }
 }
 
-NO_REPLY_TYPES = ['Have onsite team', 'OptOut', 'Aggressive', 'Not relevant']
+NO_REPLY_TYPES = ['OptOut', 'Aggressive', 'Not relevant']
 TRANSITIONS = {
     "Interested": "1576533000089318034",
     "Not Interested": "1576533000089298136",

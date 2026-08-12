@@ -109,8 +109,31 @@ def blueprint_update(record_id, module_name, transition_id, data):
     return response
 
 
+def create_task_crm(task_payload):
+    response = api_request(
+        "https://www.zohoapis.com/crm/v8/Tasks",
+        "zoho_crm",
+        "post",
+        {"data": [task_payload]}
+    )
+    print(f"Task Response: {response}")
+    return response
+
+
 def process_crm_contact(prepared_conversations):
     for prepared_conversation in prepared_conversations:
+        task_payload = {
+            "Team_Name": "Lead Generation Team",
+            "Type_of_Task": "FU Leads",
+            "Subject": "",
+            "Assignged_to": "Denys Biletchenko",
+            "Priority": "High",
+            "Created_date": date.today().strftime("%Y-%m-%d"),
+            "Due_Date": date.today().strftime("%Y-%m-%d"),
+            "Who_Id": prepared_conversation['contact_id'],
+            "Status": "Not Started",
+            "$se_module": "Contacts"
+        }
         crm_update_data = {}
         lead_stage = prepared_conversation['lead_stage'];
         lead_notinterested_type = prepared_conversation['lead_notinterested_type']
@@ -127,10 +150,12 @@ def process_crm_contact(prepared_conversations):
 
         # UPDATE CONTACT DETAILS
         if lead_stage == "Not Interested":
+            task_payload['Subject'] = "AI SDR - Send Response to Not Interested Lead"
             if lead_notinterested_type not in NO_REPLY_TYPES:
                 ai_draft_response = prepared_conversation.get('ai_response') or None
             else:
                 ai_draft_response = None
+
             optout = True if lead_notinterested_type == "OptOut" else False
             crm_update_data = {
                 "Lead_notinterested": lead_notinterested_type,
@@ -138,6 +163,9 @@ def process_crm_contact(prepared_conversations):
                 "Email_Opt_Out": optout,
                 "Reply_Date": date.today().strftime("%Y-%m-%d")
             }
+            print(crm_update_data)
+        else:
+            task_payload['Subject'] = f"Process Response from {lead_stage} on {prepared_conversation['channel_of_commuinication']}"
 
         if crm_update_data:
             contact_update_status = api_request(
@@ -148,6 +176,11 @@ def process_crm_contact(prepared_conversations):
             )
             print(contact_update_status)
 
+        try:
+            create_task_crm(task_payload)
+        except Exception as e:
+            print(f"Error while creating task: {e}")
+
 
 def worker(responses):
     try:
@@ -155,16 +188,20 @@ def worker(responses):
         classification_payload = form_classification_payload(prepared_conversations)
         print(f"Classifying {len(responses)} Responses")
         classified_responses = classify_responses(classification_payload)
-        if len(classified_responses['conversations']) == 1 and classified_responses['conversations'][0]['lead_stage'] != 'Not Interested':
-            return "Currently skipping this lead stage.."
+        print(classified_responses)
         add_classifications(classified_responses, prepared_conversations)
         response_generator_payload = form_generator_payload(prepared_conversations)
-        print(f"Generating {len(response_generator_payload)} Responses")
-        generated_ai_responses = form_reply_message({"conversations": response_generator_payload}) if response_generator_payload else []
+        if len(classified_responses['conversations']) == 1 and classified_responses['conversations'][0]['lead_stage'] != 'Not Interested':
+            print("Currently skipping this lead stage..")
+            generated_ai_responses = {"conversations": []}
+        else:
+            print(f"Generating {len(response_generator_payload)} Responses")
+            generated_ai_responses = form_reply_message({"conversations": response_generator_payload}) if response_generator_payload else {"conversations": []}
         add_ai_responses(generated_ai_responses, prepared_conversations)
-        print(prepared_conversations)
         process_crm_contact(prepared_conversations)
     except Exception as e:
-        return f'Unexpected Error: {e}'
+        print(f"Error: {e}")
+
+
 
 
