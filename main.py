@@ -150,21 +150,21 @@ def process_crm_contact(prepared_conversations):
 
 
 def worker(responses):
-    prepared_conversations = prepare_conversations(responses)
-    classification_payload = form_classification_payload(prepared_conversations)
-
-    print(f"Classifying {len(responses)} Responses")
-    classified_responses = classify_responses(classification_payload)
-    if len(classified_responses['conversations']) == 1 and classified_responses['conversations'][0]['lead_stage'] != 'Not Interested':
-        return "Currently skipping this lead stage.."
-
-    add_classifications(classified_responses, prepared_conversations)
-    response_generator_payload = form_generator_payload(prepared_conversations)
-
-    print(f"Generating {len(response_generator_payload)} Responses")
-    generated_ai_responses = form_reply_message({"conversations": response_generator_payload}) if response_generator_payload else []
-    add_ai_responses(generated_ai_responses, prepared_conversations)
-    print(prepared_conversations)
-    process_crm_contact(prepared_conversations)
+    try:
+        prepared_conversations = prepare_conversations(responses)
+        classification_payload = form_classification_payload(prepared_conversations)
+        print(f"Classifying {len(responses)} Responses")
+        classified_responses = classify_responses(classification_payload)
+        if len(classified_responses['conversations']) == 1 and classified_responses['conversations'][0]['lead_stage'] != 'Not Interested':
+            return "Currently skipping this lead stage.."
+        add_classifications(classified_responses, prepared_conversations)
+        response_generator_payload = form_generator_payload(prepared_conversations)
+        print(f"Generating {len(response_generator_payload)} Responses")
+        generated_ai_responses = form_reply_message({"conversations": response_generator_payload}) if response_generator_payload else []
+        add_ai_responses(generated_ai_responses, prepared_conversations)
+        print(prepared_conversations)
+        process_crm_contact(prepared_conversations)
+    except Exception as e:
+        return f'Unexpected Error: {e}'
 
 
