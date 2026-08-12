@@ -4,7 +4,7 @@ import re
 import json
 from secret_manager import access_secret
 
-CLAUDE_KEY = access_secret("claude_admin")
+CLAUDE_KEY = access_secret("kitrum-cloud", "claude_admin")
 
 client = Anthropic(
     api_key=CLAUDE_KEY,
