@@ -122,39 +122,40 @@ def create_task_crm(task_payload):
 
 def process_crm_contact(prepared_conversations):
     for prepared_conversation in prepared_conversations:
-        task_payload = {
+        task_template = {
             "Team_Name": "Lead Generation Team",
             "Type_of_Task": "FU Leads",
-            "Subject": "",
-            "Assignged_to": "Denys Biletchenko",
             "Priority": "High",
-            "Created_date": date.today().strftime("%Y-%m-%d"),
-            "Due_Date": date.today().strftime("%Y-%m-%d"),
-            "Who_Id": prepared_conversation['contact_id'],
             "Status": "Not Started",
             "$se_module": "Contacts"
         }
+
         crm_update_data = {}
         lead_stage = prepared_conversation['lead_stage'];
         lead_notinterested_type = prepared_conversation['lead_notinterested_type']
 
-        # UPDATE BLUEPRINT STAGE
-        if lead_notinterested_type in NO_REPLY_TYPES:
-            transition_id = TRANSITIONS[lead_stage]
-            blueprint_update(
-                record_id=prepared_conversation['contact_id'],
-                module_name="Contacts",
-                transition_id=transition_id,
-                data={}
-            )
+        # UPDATE BLUEPRINT STAGE IF NEEDED
+        if lead_notinterested_type in NO_REPLY_TYPES or lead_stage == "Auto-reply":
+            transition_id = TRANSITIONS.get(lead_stage)
+            if transition_id:
+                blueprint_update(
+                    record_id=prepared_conversation['contact_id'],
+                    module_name="Contacts",
+                    transition_id=transition_id,
+                    data={}
+                )
 
+        tasks_required = []
         # UPDATE CONTACT DETAILS
         if lead_stage == "Not Interested":
-            task_payload['Subject'] = "AI SDR - Send Response to Not Interested Lead"
             if lead_notinterested_type not in NO_REPLY_TYPES:
                 ai_draft_response = prepared_conversation.get('ai_response') or None
             else:
                 ai_draft_response = None
+            if ai_draft_response:
+                tasks_required = [
+                    {"Subject": "AI SDR - Send Response to Not Interested Lead", "Assignged_to": "Denys Biletchenko", "Created_date": date.today().strftime("%Y-%m-%d"), "Due_Date": date.today().strftime("%Y-%m-%d")}
+                ]
 
             optout = True if lead_notinterested_type == "OptOut" else False
             crm_update_data = {
@@ -163,9 +164,26 @@ def process_crm_contact(prepared_conversations):
                 "Email_Opt_Out": optout,
                 "Reply_Date": date.today().strftime("%Y-%m-%d")
             }
-            print(crm_update_data)
+        elif lead_stage == "Interested":
+            tasks_required = [
+                {
+                    "Subject": f"Process Interested Response on {prepared_conversation['channel_of_commuinication']}",
+                    "Assigned_to": "Denys Biletchenko",
+                },
+                {
+                    "Subject": f"Fill Score Fields for Interested Contact",
+                    "Assigned_to": "Lina Datsenko",
+                }
+            ]
+        elif lead_stage == "Auto-reply":
+            pass
         else:
-            task_payload['Subject'] = f"Process Response from {lead_stage} on {prepared_conversation['channel_of_commuinication']}"
+            tasks_required = [
+                {
+                    "Subject": f"Process Response from {lead_stage} on {prepared_conversation['channel_of_commuinication']}",
+                    "Assigned_to": "Denys Biletchenko"
+                }
+            ]
 
         if crm_update_data:
             contact_update_status = api_request(
@@ -177,7 +195,13 @@ def process_crm_contact(prepared_conversations):
             print(contact_update_status)
 
         try:
-            create_task_crm(task_payload)
+            for task_required in tasks_required:
+                task_payload = task_template.copy()
+                task_payload.update(task_required)
+                task_payload['Who_Id'] = prepared_conversation['contact_id']
+                task_payload['Created_Date'] = date.today().strftime("%Y-%m-%d")
+                task_payload['Due_date'] = date.today().strftime("%Y-%m-%d")
+                create_task_crm(task_payload)
         except Exception as e:
             print(f"Error while creating task: {e}")
 
@@ -188,7 +212,6 @@ def worker(responses):
         classification_payload = form_classification_payload(prepared_conversations)
         print(f"Classifying {len(responses)} Responses")
         classified_responses = classify_responses(classification_payload)
-        print(classified_responses)
         add_classifications(classified_responses, prepared_conversations)
         response_generator_payload = form_generator_payload(prepared_conversations)
         if len(classified_responses['conversations']) == 1 and classified_responses['conversations'][0]['lead_stage'] != 'Not Interested':
