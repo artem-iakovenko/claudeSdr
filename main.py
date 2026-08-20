@@ -167,8 +167,12 @@ def process_crm_contact(prepared_conversations):
         elif lead_stage == "Interested":
             tasks_required = [
                 {
+                    "Subject": f"Process Interested Response on {prepared_conversation['channel_of_commuinication']}",
+                    "Assignged_to": "Denys Biletchenko",
+                },
+                {
                     "Subject": f"Fill Score Fields for Interested Contact",
-                    "Assigned_to": "Lina Datsenko",
+                    "Assignged_to": "Lina Datsenko",
                 }
             ]
         elif lead_stage == "Auto-reply":
@@ -177,7 +181,7 @@ def process_crm_contact(prepared_conversations):
             tasks_required = [
                 {
                     "Subject": f"Process Response from {lead_stage} on {prepared_conversation['channel_of_commuinication']}",
-                    "Assigned_to": "Denys Biletchenko"
+                    "Assignged_to": "Denys Biletchenko"
                 }
             ]
 
