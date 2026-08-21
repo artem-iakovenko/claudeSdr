@@ -154,7 +154,7 @@ def process_crm_contact(prepared_conversations):
                 ai_draft_response = None
             if ai_draft_response:
                 tasks_required = [
-                    {"Subject": "AI SDR - Send Response to Not Interested Lead", "Assignged_to": "Denys Biletchenko", "Created_date": date.today().strftime("%Y-%m-%d"), "Due_Date": date.today().strftime("%Y-%m-%d")}
+                    {"Subject": "AI SDR - Send Response to Not Interested Lead", "Assignged_to": "Denys Biletchenko"}
                 ]
 
             optout = True if lead_notinterested_type == "OptOut" else False
@@ -200,7 +200,7 @@ def process_crm_contact(prepared_conversations):
                 task_payload.update(task_required)
                 task_payload['Who_Id'] = prepared_conversation['contact_id']
                 task_payload['Created_Date'] = date.today().strftime("%Y-%m-%d")
-                task_payload['Due_date'] = date.today().strftime("%Y-%m-%d")
+                task_payload['Due_Date'] = date.today().strftime("%Y-%m-%d")
                 create_task_crm(task_payload)
         except Exception as e:
             print(f"Error while creating task: {e}")
